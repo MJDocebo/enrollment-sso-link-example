@@ -552,10 +552,14 @@
                     <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                         <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">1.
-                                Worker Proxy API Call</span>
+                                Worker Proxy API Call (?url=...)</span>
                             <div class="font-mono text-slate-800 text-[11px] break-all">
                                 <span class="text-emerald-600 font-bold">POST</span> <span
-                                    id="workerApiUrlPreview">https://sweet-silence-a7fc.mjdocebosaas.workers.dev/learn/v1/enrollments/455/15381</span>
+                                    id="workerApiUrlPreview">https://sweet-silence-a7fc.mjdocebosaas.workers.dev/?url=https://mj-michael-james-demo.docebosaas.com/learn/v1/enrollments/455/15381</span>
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-1">
+                                Target: <span id="doceboDirectApiPreview"
+                                    class="font-mono text-slate-700">https://mj-michael-james-demo.docebosaas.com/learn/v1/enrollments/455/15381</span>
                             </div>
                         </div>
                         <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
@@ -911,6 +915,7 @@
             const legacySaml = `https://${c.domain}/saml/lms/index.php?r=site/sso&sso_type=saml&id_course=${c.courseId}`;
             const targetUser = c.targetUserId || appState.accounts[appState.activeAccount].userId || '15381';
             const cleanWorker = (c.workerUrl || 'https://sweet-silence-a7fc.mjdocebosaas.workers.dev').replace(/\/+$/, '');
+            const doceboApiUrl = `https://${c.domain}/learn/v1/enrollments/${c.courseId}/${targetUser}`;
 
             return {
                 // 1. Standard course link
@@ -923,7 +928,9 @@
                 link4: `https://${c.domain}/${c.eeFolder}/lms/index.php?r=site/sso&sso_type=saml&sso_auth_mode=oauth2&sso_target=hydra&id_course=${c.courseId}`,
                 // 5. Situation 5 SAML Link & API Worker Route
                 link5: legacySaml,
-                workerApiUrl: `${cleanWorker}/learn/v1/enrollments/${c.courseId}/${targetUser}`
+                doceboApiUrl: doceboApiUrl,
+                workerApiUrl: `${cleanWorker}/?url=${encodeURIComponent(doceboApiUrl)}`,
+                workerApiDisplay: `${cleanWorker}/?url=${doceboApiUrl}`
             };
         }
 
@@ -937,7 +944,11 @@
             document.getElementById('urlPreview3').innerText = urls.link3;
             document.getElementById('urlPreview4').innerText = urls.link4;
             document.getElementById('urlPreview5').innerText = urls.link5;
-            document.getElementById('workerApiUrlPreview').innerText = urls.workerApiUrl;
+            document.getElementById('workerApiUrlPreview').innerText = urls.workerApiDisplay;
+            const directPreview = document.getElementById('doceboDirectApiPreview');
+            if (directPreview) {
+                directPreview.innerText = urls.doceboApiUrl;
+            }
 
             // Update button hrefs
             document.getElementById('btnLaunch1').href = urls.link1;
@@ -1001,17 +1012,18 @@
             btnText.innerText = "Calling Worker API...";
             alertBox.classList.remove('hidden');
             alertBox.className = "mt-3 p-3 rounded-xl border text-xs font-mono bg-amber-50 border-amber-200 text-amber-900";
-            alertBox.innerHTML = `<strong>Executing Step 1:</strong> POST ${urls.workerApiUrl}...`;
+            alertBox.innerHTML = `<strong>Executing Step 1:</strong> POST ${urls.workerApiDisplay}...`;
 
             responseBox.classList.remove('hidden');
             statusBadge.innerText = 'Calling Worker...';
             statusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300';
-            responseBody.innerText = `Dispatching Enrollment request:\nWorker: ${workerUrl}\nMethod: POST\nTarget Path: /learn/v1/enrollments/${courseId}/${targetUserId}\nBearer Auth: ${bearerToken ? 'Bearer [PRESENT]' : '[NONE PROVIDED]'}\nTimestamp: ${new Date().toISOString()}`;
+            responseBody.innerText = `Dispatching Enrollment request via Cloudflare Worker Proxy:\nWorker Endpoint: ${workerUrl}\nTarget Docebo URL: ${urls.doceboApiUrl}\nProxy URL: ${urls.workerApiDisplay}\nMethod: POST\nBearer Auth: ${bearerToken ? 'Bearer [PRESENT]' : '[NONE PROVIDED]'}\nTimestamp: ${new Date().toISOString()}`;
 
             try {
-                // Build request: Send headers so the worker can proxy directly or forward payload
+                // Construct target Docebo API URL and forward via Cloudflare worker query parameter (?url=)
                 const cleanBase = workerUrl.replace(/\/+$/, '');
-                const targetEndpoint = `${cleanBase}/learn/v1/enrollments/${courseId}/${targetUserId}`;
+                const targetDoceboEndpoint = `https://${appState.config.domain}/learn/v1/enrollments/${courseId}/${targetUserId}`;
+                const targetEndpoint = `${cleanBase}/?url=${encodeURIComponent(targetDoceboEndpoint)}`;
 
                 const headers = {
                     'Content-Type': 'application/json'
@@ -1062,9 +1074,9 @@
             } catch (err) {
                 statusBadge.innerText = 'Network / CORS Error';
                 statusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300';
-                responseBody.innerText = `Fetch Error: ${err.message}\n\nTroubleshooting:\n1. Ensure Cloudflare worker handles CORS with 'Access-Control-Allow-Origin: *' and OPTIONS preflight.\n2. Ensure worker forwards or attaches Authorization header to Docebo.`;
+                responseBody.innerText = `Fetch Error: ${err.message}\n\nTroubleshooting:\n1. Verify worker handles preflight OPTIONS and adds 'Access-Control-Allow-Origin: *'.\n2. Verify worker forwards the Authorization header to Docebo.`;
                 alertBox.className = "mt-3 p-3 rounded-xl border text-xs font-mono bg-amber-50 border-amber-300 text-amber-900";
-                alertBox.innerHTML = `<div><strong>Worker Call Note:</strong> ${err.message}. If CORS blocked, verify worker headers. Launching SAML Link anyway...</div>`;
+                alertBox.innerHTML = `<div><strong>Worker Call Note:</strong> ${err.message}. Launching SAML Link anyway...</div>`;
 
                 if (launchSamlAfter) {
                     window.open(urls.link5, '_blank', 'noopener,noreferrer');
