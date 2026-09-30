@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docebo Course SSO & Re-Auth Test Suite</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        docebo: {
+                            blue: '#00263E',
+                            accent: '#00A3E0',
+                            badge: '#0284C7',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        code,
+        pre,
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- Top Navigation / Simulated Front-End Portal Bar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+
+            <!-- Brand & Title -->
+            <div class="flex items-center space-x-3">
+                <div
+                    class="h-9 w-9 rounded-lg bg-slate-900 flex items-center justify-center text-white font-black text-sm tracking-wider shadow-sm">
+                    <span>PORTAL</span>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-sm sm:text-base font-bold text-slate-900">Custom Front-End Simulation</h1>
+                        <span
+                            class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                            Session Active
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 hidden sm:block">Testing Docebo SAML SSO Session Persistence &
+                        Course Handoff</p>
+                </div>
+            </div>
+
+            <!-- Account Switcher Controls (Simulates switching user in front end) -->
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <button id="btnUserA" onclick="switchAccount('A')"
+                        class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs bg-white text-slate-900 border border-slate-200">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                        <span>Account A</span>
+                    </button>
+                    <button id="btnUserB" onclick="switchAccount('B')"
+                        class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 hover:text-slate-900">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <span>Account B</span>
+                    </button>
+                </div>
+
+                <button onclick="toggleConfigModal(true)"
+                    class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                    title="Configure URL Parameters">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6">
+
+        <!-- Active Persona Context & Test Objective Alert -->
+        <div
+            class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-6 shadow-md border border-slate-700">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div class="space-y-2">
+                    <div class="flex items-center space-x-2">
+                        <span
+                            class="px-2 py-0.5 text-xs font-semibold tracking-wide uppercase bg-sky-500/20 text-sky-300 rounded border border-sky-400/30">
+                            Hypothesis Test
+                        </span>
+                        <span class="text-xs text-slate-300">Entra ID (Azure AD) + Docebo SAML SSO</span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-bold tracking-tight">
+                        Front-End Authenticated: <span id="currentAccountLabel" class="text-sky-400">Account A</span>
+                    </h2>
+                    <p class="text-slate-300 text-sm max-w-3xl leading-relaxed">
+                        <strong>The Test Case:</strong> You logged into Docebo previously as <em>Account A</em> and did
+                        <u>not</u> log out of Docebo. You now switch to <em>Account B</em> in this front-end app. Will
+                        clicking Docebo links force SAML reauthentication with Entra ID, or will Docebo blindly serve
+                        the session belonging to <em>Account A</em>?
+                    </p>
+                </div>
+
+                <!-- Account Pill Information -->
+                <div
+                    class="bg-slate-800/80 backdrop-blur rounded-xl p-4 border border-slate-700 flex flex-col justify-between min-w-[260px] text-xs">
+                    <div class="text-slate-400 uppercase font-bold text-[10px] tracking-wider mb-2">Simulated Front-End
+                        Token</div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Identity / Email:</span>
+                            <span id="accountEmail"
+                                class="font-mono text-slate-200">ee-user@Docebo472.onmicrosoft.com</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Entra UPN:</span>
+                            <span id="accountUpn"
+                                class="font-mono text-sky-400">ee-user@Docebo472.onmicrosoft.com</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Docebo User ID:</span>
+                            <span id="accountUserId" class="font-mono text-amber-300 font-semibold">15399</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Target Course:</span>
+                            <span class="font-mono text-emerald-400 font-semibold" id="pillCourse">ID #455</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Step-by-Step Testing Procedure -->
+            <div class="mt-6 pt-4 border-t border-slate-700/60 grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                <div class="bg-slate-800/40 rounded-lg p-3 border border-slate-700/40">
+                    <div class="font-bold text-sky-300 mb-1">Step 1: Baseline Session</div>
+                    <div class="text-slate-400">Select <span class="text-white">Account A</span>. Open Docebo via Link 1
+                        or 3 and log in. Do <strong>not</strong> log out.</div>
+                </div>
+                <div class="bg-slate-800/40 rounded-lg p-3 border border-slate-700/40">
+                    <div class="font-bold text-sky-300 mb-1">Step 2: Switch Front-End</div>
+                    <div class="text-slate-400">Click <span class="text-white">Account B</span> toggle in the top bar
+                        above to simulate a new portal session.</div>
+                </div>
+                <div class="bg-slate-800/40 rounded-lg p-3 border border-slate-700/40">
+                    <div class="font-bold text-sky-300 mb-1">Step 3: Test Direct Links (1-4)</div>
+                    <div class="text-slate-400">Launch standard, hash-enrolled, or SAML SSO links and check active
+                        profile.</div>
+                </div>
+                <div class="bg-slate-800/40 rounded-lg p-3 border border-slate-700/40">
+                    <div class="font-bold text-amber-300 mb-1">Step 4: Test Situation 5 (API)</div>
+                    <div class="text-slate-400">Call worker API to enroll User 15381, then trigger SAML handoff.</div>
+                </div>
+                <div class="bg-slate-800/40 rounded-lg p-3 border border-slate-700/40">
+                    <div class="font-bold text-emerald-300 mb-1">Step 5: Record Ledger</div>
+                    <div class="text-slate-400">Note whether Docebo prompted Entra ID or served Account A's session.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- The Course Link Cards Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- CARD 1: Standard Course Link -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between hover:border-slate-300 transition-all">
+                <div>
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span
+                                class="h-7 w-7 rounded-lg bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">1</span>
+                            <h3 class="font-bold text-slate-900 text-base">Standard Course Link</h3>
+                        </div>
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                            Direct / Router
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                        Standard direct URL to the course overview/player within the SAML subdomain path. Does not
+                        trigger SAML initiation if a valid session cookie exists.
+                    </p>
+
+                    <div class="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <span
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Constructed
+                            Target URL</span>
+                        <div id="urlPreview1" class="text-xs font-mono text-slate-800 break-all select-all select-text">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-1.5 text-xs text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span><strong>Session Behavior:</strong> Relies entirely on existing Docebo cookie.</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span><strong>Auto Enrollment:</strong> No. Prompts enrollment button if allowed.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                    <a id="btnLaunch1" href="#" target="_blank" rel="noopener noreferrer"
+                        class="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-xs transition">
+                        <span>Launch Link 1</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                    <button onclick="copyUrl('urlPreview1', this)"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium p-2.5 rounded-xl text-xs transition"
+                        title="Copy URL">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                            </path>
+                        </svg>
+                    </button>
+                    <button onclick="logQuickTest(1)"
+                        class="bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium px-3 py-2.5 rounded-xl text-xs transition">
+                        Log Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- CARD 2: Course Deeplink with Automatic Enrollment Hash -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between hover:border-slate-300 transition-all">
+                <div>
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span
+                                class="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 font-bold text-xs flex items-center justify-center">2</span>
+                            <h3 class="font-bold text-slate-900 text-base">Course Deeplink (Auto-Enroll Hash)</h3>
+                        </div>
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            Deep Enrollment
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                        Uses Docebo's deep linking engine with signed token hash (<code
+                            class="bg-slate-100 px-1 py-0.5 rounded">hash</code> & <code
+                            class="bg-slate-100 px-1 py-0.5 rounded">generated_by</code>). Tests if the active cookie
+                        user gets auto-enrolled without verifying Entra identity.
+                    </p>
+
+                    <div class="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <span
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Constructed
+                            Target URL</span>
+                        <div id="urlPreview2" class="text-xs font-mono text-slate-800 break-all select-all select-text">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-1.5 text-xs text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span><strong>Auto Enrollment:</strong> Enrolls whichever user is currently logged
+                                in.</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                </path>
+                            </svg>
+                            <span><strong>Vulnerability Risk:</strong> User A can accidentally consume User B's
+                                seat.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                    <a id="btnLaunch2" href="#" target="_blank" rel="noopener noreferrer"
+                        class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-xs transition">
+                        <span>Launch Link 2</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                    <button onclick="copyUrl('urlPreview2', this)"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium p-2.5 rounded-xl text-xs transition"
+                        title="Copy URL">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                            </path>
+                        </svg>
+                    </button>
+                    <button onclick="logQuickTest(2)"
+                        class="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-medium px-3 py-2.5 rounded-xl text-xs transition">
+                        Log Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- CARD 3: Legacy SAML SSO Course Link -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between hover:border-slate-300 transition-all">
+                <div>
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span
+                                class="h-7 w-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">3</span>
+                            <h3 class="font-bold text-slate-900 text-base">Legacy SAML SSO Course Link</h3>
+                        </div>
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
+                            Legacy Endpoint
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                        Hits the classic Yii framework SSO endpoint (<code
+                            class="bg-slate-100 px-1 py-0.5 rounded">r=site/sso&sso_type=saml&id_course=455</code>).
+                        Tests if the legacy controller invokes the IdP roundtrip or recognizes session.
+                    </p>
+
+                    <div class="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <span
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Constructed
+                            Target URL</span>
+                        <div id="urlPreview3" class="text-xs font-mono text-slate-800 break-all select-all select-text">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-1.5 text-xs text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                            <span><strong>SAML Endpoint:</strong> Triggers standard SP-initiated SAML flow.</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span><strong>Re-Auth Test:</strong> Does it honor existing cookie or re-ping Entra?</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                    <a id="btnLaunch3" href="#" target="_blank" rel="noopener noreferrer"
+                        class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-xs transition">
+                        <span>Launch Link 3</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                    <button onclick="copyUrl('urlPreview3', this)"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium p-2.5 rounded-xl text-xs transition"
+                        title="Copy URL">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                            </path>
+                        </svg>
+                    </button>
+                    <button onclick="logQuickTest(3)"
+                        class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium px-3 py-2.5 rounded-xl text-xs transition">
+                        Log Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- CARD 4: Modern SAML SSO Course Link (Hydra OAuth2) -->
+            <div
+                class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between hover:border-slate-300 transition-all">
+                <div>
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span
+                                class="h-7 w-7 rounded-lg bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center">4</span>
+                            <h3 class="font-bold text-slate-900 text-base">Modern SAML SSO (Hydra OAuth2)</h3>
+                        </div>
+                        <span
+                            class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700 border border-purple-200">
+                            Hydra Target
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">
+                        Uses Docebo's modernized SSO gateway with <code
+                            class="bg-slate-100 px-1 py-0.5 rounded">sso_auth_mode=oauth2</code> and <code
+                            class="bg-slate-100 px-1 py-0.5 rounded">sso_target=hydra</code>. Configurable Enterprise
+                        Extension folder.
+                    </p>
+
+                    <div class="mt-4 bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <span
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Constructed
+                            Target URL</span>
+                        <div id="urlPreview4" class="text-xs font-mono text-slate-800 break-all select-all select-text">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-1.5 text-xs text-slate-600">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-purple-600 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                                </path>
+                            </svg>
+                            <span><strong>Hydra Architecture:</strong> Evaluates OAuth2 session state on modern
+                                UI.</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+                                </path>
+                            </svg>
+                            <span><strong>Custom Folder:</strong> Current EE folder is <code id="lblEeFolder"
+                                    class="font-mono text-purple-700 bg-purple-50 px-1 rounded">&lt;EEfolder&gt;</code></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-slate-100 flex items-center gap-3">
+                    <a id="btnLaunch4" href="#" target="_blank" rel="noopener noreferrer"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-xs transition">
+                        <span>Launch Link 4</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+                    <button onclick="copyUrl('urlPreview4', this)"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium p-2.5 rounded-xl text-xs transition"
+                        title="Copy URL">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3">
+                            </path>
+                        </svg>
+                    </button>
+                    <button onclick="logQuickTest(4)"
+                        class="bg-purple-50 hover:bg-purple-100 text-purple-700 font-medium px-3 py-2.5 rounded-xl text-xs transition">
+                        Log Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- CARD 5: Situation 5 - Worker API Pre-Enrollment + Legacy SAML SSO Launch -->
+            <div
+                class="lg:col-span-2 bg-gradient-to-br from-amber-50/70 via-white to-orange-50/50 rounded-2xl border-2 border-amber-300 shadow-sm p-6 flex flex-col justify-between hover:border-amber-400 transition-all">
+                <div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2">
+                            <span
+                                class="h-7 w-7 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">5</span>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h3 class="font-bold text-slate-900 text-base">Situation 5: Pre-API Enrollment +
+                                        Legacy SAML SSO</h3>
+                                    <span
+                                        class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wide">
+                                        Proxy API + SAML
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-500 flex items-center space-x-2">
+                            <span>Target: User ID <span class="font-mono font-bold text-slate-800"
+                                    id="card5TargetUserId">15381</span></span>
+                            <span>•</span>
+                            <span>Course ID <span class="font-mono font-bold text-slate-800"
+                                    id="card5TargetCourseId">455</span></span>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-600 mt-2.5 leading-relaxed">
+                        Calls Docebo API <code
+                            class="bg-amber-100/70 text-amber-900 font-mono px-1.5 py-0.5 rounded text-[11px]">POST /learn/v1/enrollments/{course_id}/{user_id}</code>
+                        through your Cloudflare Worker using your Docebo service account bearer token. Once enrollment
+                        succeeds, it proceeds to launch the Legacy SAML SSO link (<code
+                            class="bg-slate-100 px-1 py-0.5 rounded text-[11px]">r=site/sso&sso_type=saml&id_course=455</code>).
+                    </p>
+
+                    <!-- API Call & Target Preview -->
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">1.
+                                Worker Proxy API Call</span>
+                            <div class="font-mono text-slate-800 text-[11px] break-all">
+                                <span class="text-emerald-600 font-bold">POST</span> <span
+                                    id="workerApiUrlPreview">https://sweet-silence-a7fc.mjdocebosaas.workers.dev/learn/v1/enrollments/455/15381</span>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-2xs">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">2.
+                                SAML SSO Handoff Link</span>
+                            <div id="urlPreview5" class="font-mono text-slate-800 text-[11px] break-all select-all">
+                                https://mj-michael-james-demo.docebosaas.com/saml/lms/index.php?r=site/sso&sso_type=saml&id_course=455
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Situation 5 Inline Quick Status -->
+                    <div id="card5StatusAlert" class="mt-3 hidden p-3 rounded-xl border text-xs font-mono">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-amber-200/80 flex flex-wrap items-center gap-3">
+                    <button id="btnExecuteSituation5" onclick="executeSituation5(true)"
+                        class="flex-1 min-w-[220px] bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-semibold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 shadow-sm transition">
+                        <svg id="s5Spinner" class="w-4 h-4 hidden animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <span id="s5BtnText">⚡ Step 1: Enroll via API + Step 2: Open SAML</span>
+                    </button>
+
+                    <button onclick="executeSituation5(false)"
+                        class="bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 font-medium py-2.5 px-3.5 rounded-xl text-xs transition flex items-center space-x-1.5 shadow-2xs"
+                        title="Only execute POST /learn/v1/enrollments via Worker without opening SAML link">
+                        <span>Test API Only</span>
+                    </button>
+
+                    <a id="btnLaunch5Direct" href="#" target="_blank" rel="noopener noreferrer"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium py-2.5 px-3 rounded-xl text-xs transition flex items-center space-x-1"
+                        title="Open the SAML Course link without re-enrolling">
+                        <span>Open SAML Only</span>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                    </a>
+
+                    <button onclick="logQuickTest(5)"
+                        class="bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium px-3.5 py-2.5 rounded-xl text-xs transition">
+                        Log Test
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Cloudflare Worker / API Proxy Simulation Section -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <svg class="w-5 h-5 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.6.1 2.78 1.44 2.78 2.96 0 1.65-1.35 3-3 3z" />
+                        </svg>
+                        <h3 class="font-bold text-slate-900 text-base">Cloudflare Worker & Service Account Configuration
+                        </h3>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">
+                        Proxies enrollment calls to <code
+                            class="text-slate-800 font-mono">/learn/v1/enrollments/{course_id}/{user_id}</code> to
+                        prevent browser CORS blocks and authenticate with Docebo.
+                    </p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="saveWorkerCredentials()"
+                        class="bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition shadow-xs flex items-center space-x-1">
+                        <span>Save Proxy Token</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Worker & Token Inputs Grid -->
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div class="md:col-span-1">
+                    <label class="block font-semibold text-slate-700 mb-1">Cloudflare Worker URL</label>
+                    <input type="text" id="workerEndpointInput"
+                        value="https://sweet-silence-a7fc.mjdocebosaas.workers.dev"
+                        placeholder="https://sweet-silence-a7fc.mjdocebosaas.workers.dev"
+                        class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-mono focus:outline-none focus:border-brand-500">
+                </div>
+                <div class="md:col-span-1">
+                    <label class="block font-semibold text-slate-700 mb-1">Service Account Bearer Token</label>
+                    <div class="relative">
+                        <input type="password" id="workerBearerTokenInput" placeholder="eyJhbGciOiJSUzI1Ni..."
+                            class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg pl-3 pr-8 py-2 font-mono focus:outline-none focus:border-brand-500">
+                        <button type="button" onclick="toggleTokenVisibility()"
+                            class="absolute inset-y-0 right-0 px-2.5 text-slate-400 hover:text-slate-600">
+                            <svg id="eyeIcon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="md:col-span-1">
+                    <label class="block font-semibold text-slate-700 mb-1">Target User ID (Account B / Target)</label>
+                    <input type="text" id="cfgTargetUserId" value="15381"
+                        class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-mono focus:outline-none focus:border-brand-500">
+                </div>
+            </div>
+
+            <div id="workerResponseBox"
+                class="mt-4 hidden bg-slate-900 text-slate-200 rounded-xl p-4 text-xs font-mono">
+                <div class="flex justify-between items-center text-slate-400 mb-2 border-b border-slate-700 pb-2">
+                    <span>Worker & Docebo API Response Stream</span>
+                    <span id="workerStatusBadge"
+                        class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">Ready</span>
+                </div>
+                <pre id="workerResponseBody"
+                    class="overflow-x-auto text-[11px] leading-relaxed custom-scroll">Waiting for payload...</pre>
+            </div>
+        </div>
+
+        <!-- Test Results Audit Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Live Observation Ledger</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Track and verify session behavior across your two test
+                        identities.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="exportAuditData()"
+                        class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center space-x-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span>Export CSV</span>
+                    </button>
+                    <button onclick="clearAuditData()"
+                        class="text-rose-600 hover:bg-rose-50 text-xs font-semibold px-3 py-1.5 rounded-lg transition">
+                        Clear Logs
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto custom-scroll">
+                <table class="w-full text-left text-xs">
+                    <thead
+                        class="bg-slate-50 text-slate-500 uppercase font-semibold border-y border-slate-200 text-[10px] tracking-wider">
+                        <tr>
+                            <th class="py-2.5 px-3">Timestamp</th>
+                            <th class="py-2.5 px-3">Link Type</th>
+                            <th class="py-2.5 px-3">Front-End User</th>
+                            <th class="py-2.5 px-3">Observed In Docebo</th>
+                            <th class="py-2.5 px-3">Forced Re-Auth?</th>
+                            <th class="py-2.5 px-3">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody" class="divide-y divide-slate-100 text-slate-700">
+                        <!-- Row items injected via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Configuration Drawer / Modal -->
+    <div id="configModal"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 p-6 space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Test Parameters & Credentials</h3>
+                    <p class="text-xs text-slate-500">Customize the domain, course IDs, and auto-enroll tokens</p>
+                </div>
+                <button onclick="toggleConfigModal(false)" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Docebo Host Domain</label>
+                    <input type="text" id="cfgDomain"
+                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none"
+                        value="mj-michael-james-demo.docebosaas.com">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Course ID</label>
+                        <input type="text" id="cfgCourseId"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none"
+                            value="455">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Course Slug</label>
+                        <input type="text" id="cfgCourseSlug"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none"
+                            value="leadership-essentials">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">EE Folder &lt;EEfolder&gt;</label>
+                        <input type="text" id="cfgEeFolder"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none"
+                            value="saml" placeholder="e.g. saml or custom">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Generated By ID</label>
+                        <input type="text" id="cfgGeneratedBy"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none"
+                            value="13310">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Enrollment Hash Token</label>
+                    <input type="text" id="cfgHash"
+                        class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none text-[11px]"
+                        value="97ac24e3aae6f2d9bfb07c019229a78dd25e35eb">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Account A User ID</label>
+                        <input type="text" id="cfgUserAId"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none text-[11px]"
+                            value="15399">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Account B User ID</label>
+                        <input type="text" id="cfgUserBId"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 font-mono focus:border-brand-500 focus:outline-none text-[11px]"
+                            value="15381">
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end space-x-2">
+                <button onclick="toggleConfigModal(false)"
+                    class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 rounded-lg">Cancel</button>
+                <button onclick="saveConfiguration()"
+                    class="px-4 py-2 text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white rounded-lg shadow-xs">Save
+                    & Refresh URLs</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Message Element -->
+    <div id="toastNotification"
+        class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none flex items-center space-x-2 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl border border-slate-700">
+        <span id="toastIcon">✓</span>
+        <span id="toastMsg">Operation successful</span>
+    </div>
+
+    <script>
+        /* State configuration */
+        const appState = {
+            activeAccount: 'A',
+            accounts: {
+                A: {
+                    name: 'Account A (ee-user)',
+                    email: 'ee-user@Docebo472.onmicrosoft.com',
+                    upn: 'ee-user@Docebo472.onmicrosoft.com',
+                    userId: '15399',
+                    badgeColor: 'bg-blue-500'
+                },
+                B: {
+                    name: 'Account B (MJJames)',
+                    email: 'MJJames@Docebo472.onmicrosoft.com',
+                    upn: 'MJJames@Docebo472.onmicrosoft.com',
+                    userId: '15381',
+                    badgeColor: 'bg-amber-500'
+                }
+            },
+            config: {
+                domain: 'mj-michael-james-demo.docebosaas.com',
+                courseId: '455',
+                courseSlug: 'leadership-essentials',
+                eeFolder: 'saml',
+                generatedBy: '13310',
+                hash: '97ac24e3aae6f2d9bfb07c019229a78dd25e35eb',
+                workerUrl: 'https://sweet-silence-a7fc.mjdocebosaas.workers.dev',
+                bearerToken: '',
+                userAId: '15399',
+                targetUserId: '15381'
+            },
+            logs: []
+        };
+
+        window.onload = function () {
+            // Load stored configurations if existing
+            const storedConfig = localStorage.getItem('docebo_test_config');
+            if (storedConfig) {
+                try {
+                    appState.config = { ...appState.config, ...JSON.parse(storedConfig) };
+                    document.getElementById('cfgDomain').value = appState.config.domain || 'mj-michael-james-demo.docebosaas.com';
+                    document.getElementById('cfgCourseId').value = appState.config.courseId || '455';
+                    document.getElementById('cfgCourseSlug').value = appState.config.courseSlug || 'leadership-essentials';
+                    document.getElementById('cfgEeFolder').value = appState.config.eeFolder || 'saml';
+                    document.getElementById('cfgGeneratedBy').value = appState.config.generatedBy || '13310';
+                    document.getElementById('cfgHash').value = appState.config.hash || '97ac24e3aae6f2d9bfb07c019229a78dd25e35eb';
+                    if (appState.config.workerUrl) {
+                        document.getElementById('workerEndpointInput').value = appState.config.workerUrl;
+                    }
+                    if (appState.config.bearerToken) {
+                        document.getElementById('workerBearerTokenInput').value = appState.config.bearerToken;
+                    }
+                    if (appState.config.targetUserId) {
+                        document.getElementById('cfgTargetUserId').value = appState.config.targetUserId;
+                        appState.accounts.B.userId = appState.config.targetUserId;
+                    }
+                    if (appState.config.userAId) {
+                        appState.accounts.A.userId = appState.config.userAId;
+                        document.getElementById('cfgUserAId').value = appState.config.userAId;
+                    }
+                } catch (e) {
+                    console.error('Error loading config:', e);
+                }
+            } else {
+                document.getElementById('cfgUserAId').value = appState.accounts.A.userId;
+                document.getElementById('cfgUserBId').value = appState.accounts.B.userId;
+            }
+
+            const storedLogs = localStorage.getItem('docebo_test_logs');
+            if (storedLogs) {
+                try {
+                    appState.logs = JSON.parse(storedLogs);
+                } catch (e) {
+                    appState.logs = [];
+                }
+            }
+
+            // Initial account presentation
+            switchAccount('A');
+            renderAllUrls();
+            renderLogs();
+        };
+
+        function constructUrls() {
+            const c = appState.config;
+            const legacySaml = `https://${c.domain}/saml/lms/index.php?r=site/sso&sso_type=saml&id_course=${c.courseId}`;
+            const targetUser = c.targetUserId || appState.accounts[appState.activeAccount].userId || '15381';
+            const cleanWorker = (c.workerUrl || 'https://sweet-silence-a7fc.mjdocebosaas.workers.dev').replace(/\/+$/, '');
+
+            return {
+                // 1. Standard course link
+                link1: `https://${c.domain}/saml/learn/courses/${c.courseId}/${c.courseSlug}`,
+                // 2. Deeplink with auto-enroll hash
+                link2: `https://${c.domain}/saml/learn/course/${c.courseId}/${c.courseSlug}?generated_by=${c.generatedBy}&hash=${c.hash}`,
+                // 3. Legacy SAML SSO course link
+                link3: legacySaml,
+                // 4. Modern SAML SSO course link (Hydra OAuth2)
+                link4: `https://${c.domain}/${c.eeFolder}/lms/index.php?r=site/sso&sso_type=saml&sso_auth_mode=oauth2&sso_target=hydra&id_course=${c.courseId}`,
+                // 5. Situation 5 SAML Link & API Worker Route
+                link5: legacySaml,
+                workerApiUrl: `${cleanWorker}/learn/v1/enrollments/${c.courseId}/${targetUser}`
+            };
+        }
+
+        function renderAllUrls() {
+            const urls = constructUrls();
+            const currentUserId = appState.accounts[appState.activeAccount].userId;
+
+            // Update previews
+            document.getElementById('urlPreview1').innerText = urls.link1;
+            document.getElementById('urlPreview2').innerText = urls.link2;
+            document.getElementById('urlPreview3').innerText = urls.link3;
+            document.getElementById('urlPreview4').innerText = urls.link4;
+            document.getElementById('urlPreview5').innerText = urls.link5;
+            document.getElementById('workerApiUrlPreview').innerText = urls.workerApiUrl;
+
+            // Update button hrefs
+            document.getElementById('btnLaunch1').href = urls.link1;
+            document.getElementById('btnLaunch2').href = urls.link2;
+            document.getElementById('btnLaunch3').href = urls.link3;
+            document.getElementById('btnLaunch4').href = urls.link4;
+            document.getElementById('btnLaunch5Direct').href = urls.link5;
+
+            // Update labels & pills
+            document.getElementById('pillCourse').innerText = `ID #${appState.config.courseId}`;
+            document.getElementById('accountUserId').innerText = currentUserId;
+            document.getElementById('lblEeFolder').innerText = `<${appState.config.eeFolder}>`;
+            document.getElementById('card5TargetUserId').innerText = appState.config.targetUserId;
+            document.getElementById('card5TargetCourseId').innerText = appState.config.courseId;
+        }
+
+        function switchAccount(accountKey) {
+            appState.activeAccount = accountKey;
+            const acc = appState.accounts[accountKey];
+
+            document.getElementById('currentAccountLabel').innerText = acc.name;
+            document.getElementById('accountEmail').innerText = acc.email;
+            document.getElementById('accountUpn').innerText = acc.upn;
+            document.getElementById('accountUserId').innerText = acc.userId;
+
+            const btnA = document.getElementById('btnUserA');
+            const btnB = document.getElementById('btnUserB');
+
+            if (accountKey === 'A') {
+                btnA.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs bg-white text-slate-900 border border-slate-200";
+                btnB.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 hover:text-slate-900";
+            } else {
+                btnB.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-xs bg-white text-slate-900 border border-slate-200";
+                btnA.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-slate-600 hover:text-slate-900";
+            }
+
+            showToast(`Switched active front-end identity to ${acc.name}`);
+        }
+
+        /* Situation 5 Execution: Calls Worker POST /learn/v1/enrollments/{course_id}/{user_id} then opens SAML link */
+        async function executeSituation5(launchSamlAfter = true) {
+            const urls = constructUrls();
+            const workerUrl = document.getElementById('workerEndpointInput').value.trim() || appState.config.workerUrl;
+            const bearerToken = document.getElementById('workerBearerTokenInput').value.trim() || appState.config.bearerToken;
+            const courseId = appState.config.courseId;
+            const targetUserId = document.getElementById('cfgTargetUserId').value.trim() || appState.config.targetUserId;
+
+            const spinner = document.getElementById('s5Spinner');
+            const btnText = document.getElementById('s5BtnText');
+            const alertBox = document.getElementById('card5StatusAlert');
+            const responseBox = document.getElementById('workerResponseBox');
+            const responseBody = document.getElementById('workerResponseBody');
+            const statusBadge = document.getElementById('workerStatusBadge');
+
+            if (!workerUrl) {
+                showToast("Please enter your Cloudflare Worker URL", true);
+                return;
+            }
+
+            spinner.classList.remove('hidden');
+            btnText.innerText = "Calling Worker API...";
+            alertBox.classList.remove('hidden');
+            alertBox.className = "mt-3 p-3 rounded-xl border text-xs font-mono bg-amber-50 border-amber-200 text-amber-900";
+            alertBox.innerHTML = `<strong>Executing Step 1:</strong> POST ${urls.workerApiUrl}...`;
+
+            responseBox.classList.remove('hidden');
+            statusBadge.innerText = 'Calling Worker...';
+            statusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300';
+            responseBody.innerText = `Dispatching Enrollment request:\nWorker: ${workerUrl}\nMethod: POST\nTarget Path: /learn/v1/enrollments/${courseId}/${targetUserId}\nBearer Auth: ${bearerToken ? 'Bearer [PRESENT]' : '[NONE PROVIDED]'}\nTimestamp: ${new Date().toISOString()}`;
+
+            try {
+                // Build request: Send headers so the worker can proxy directly or forward payload
+                const cleanBase = workerUrl.replace(/\/+$/, '');
+                const targetEndpoint = `${cleanBase}/learn/v1/enrollments/${courseId}/${targetUserId}`;
+
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                if (bearerToken) {
+                    headers['Authorization'] = bearerToken.startsWith('Bearer ') ? bearerToken : `Bearer ${bearerToken}`;
+                }
+
+                const res = await fetch(targetEndpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        course_id: parseInt(courseId, 10),
+                        user_id: parseInt(targetUserId, 10),
+                        date_begin_validity: null,
+                        date_expire_validity: null
+                    })
+                });
+
+                const rawText = await res.text();
+                let jsonResponse;
+                try {
+                    jsonResponse = JSON.parse(rawText);
+                } catch {
+                    jsonResponse = rawText;
+                }
+
+                const isSuccess = res.ok;
+                statusBadge.innerText = `HTTP ${res.status}`;
+                statusBadge.className = isSuccess ? 'text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300' : 'text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300';
+                responseBody.innerText = typeof jsonResponse === 'object' ? JSON.stringify(jsonResponse, null, 2) : jsonResponse;
+
+                if (isSuccess) {
+                    alertBox.className = "mt-3 p-3 rounded-xl border text-xs font-mono bg-emerald-50 border-emerald-200 text-emerald-900";
+                    alertBox.innerHTML = `<div><strong>Step 1 SUCCESS (HTTP ${res.status}):</strong> User ${targetUserId} enrolled in course ${courseId}.</div>`;
+                    showToast(`User ${targetUserId} successfully enrolled in course #${courseId}!`);
+                } else {
+                    alertBox.className = "mt-3 p-3 rounded-xl border text-xs font-mono bg-rose-50 border-rose-200 text-rose-900";
+                    alertBox.innerHTML = `<div><strong>Step 1 Worker/API Response (${res.status}):</strong> Inspect payload below. Proceeding with SAML test.</div>`;
+                    showToast(`API enrollment returned HTTP ${res.status}`, true);
+                }
+
+                if (launchSamlAfter) {
+                    alertBox.innerHTML += `<div class="mt-1 font-semibold text-slate-700"><strong>Step 2:</strong> Opening Legacy SAML SSO link in a new tab...</div>`;
+                    window.open(urls.link5, '_blank', 'noopener,noreferrer');
+                }
+
+            } catch (err) {
+                statusBadge.innerText = 'Network / CORS Error';
+                statusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300';
+                responseBody.innerText = `Fetch Error: ${err.message}\n\nTroubleshooting:\n1. Ensure Cloudflare worker handles CORS with 'Access-Control-Allow-Origin: *' and OPTIONS preflight.\n2. Ensure worker forwards or attaches Authorization header to Docebo.`;
+                alertBox.className = "mt-3 p-3 rounded-xl border text-xs font-mono bg-amber-50 border-amber-300 text-amber-900";
+                alertBox.innerHTML = `<div><strong>Worker Call Note:</strong> ${err.message}. If CORS blocked, verify worker headers. Launching SAML Link anyway...</div>`;
+
+                if (launchSamlAfter) {
+                    window.open(urls.link5, '_blank', 'noopener,noreferrer');
+                }
+            } finally {
+                spinner.classList.add('hidden');
+                btnText.innerText = "⚡ Step 1: Enroll via API + Step 2: Open SAML";
+            }
+        }
+
+        function toggleTokenVisibility() {
+            const input = document.getElementById('workerBearerTokenInput');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function saveWorkerCredentials() {
+            appState.config.workerUrl = document.getElementById('workerEndpointInput').value.trim();
+            appState.config.bearerToken = document.getElementById('workerBearerTokenInput').value.trim();
+            appState.config.targetUserId = document.getElementById('cfgTargetUserId').value.trim();
+            localStorage.setItem('docebo_test_config', JSON.stringify(appState.config));
+            renderAllUrls();
+            showToast("Worker credentials & Target User saved");
+        }
+
+        function copyUrl(elementId, btnElement) {
+            const textToCopy = document.getElementById(elementId).innerText.trim();
+
+            const textArea = document.createElement("textarea");
+            textArea.value = textToCopy;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast("Copied link to clipboard!");
+                    const origHtml = btnElement.innerHTML;
+                    btnElement.innerHTML = `<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
+                    setTimeout(() => { btnElement.innerHTML = origHtml; }, 1500);
+                } else {
+                    showToast("Could not copy link", true);
+                }
+            } catch (err) {
+                showToast("Clipboard copy unsupported", true);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function logQuickTest(linkIndex) {
+            const titles = [
+                "1. Standard Course Link",
+                "2. Auto-Enroll DeepLink",
+                "3. Legacy SAML SSO",
+                "4. Modern SAML (Hydra)",
+                "5. Pre-API Enroll + Legacy SAML"
+            ];
+
+            const activeUser = appState.accounts[appState.activeAccount].name;
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            // Create interactive log entry where the tester selects outcome
+            const newEntry = {
+                id: Date.now(),
+                time: timestamp,
+                linkType: titles[linkIndex - 1],
+                frontUser: activeUser,
+                observedUser: 'Unchecked',
+                reauthForced: 'Pending',
+            };
+
+            appState.logs.unshift(newEntry);
+            saveLogs();
+            renderLogs();
+            showToast(`Added test entry for Link ${linkIndex}. Update outcome below.`);
+        }
+
+        function updateLogField(id, field, value) {
+            const item = appState.logs.find(x => x.id === id);
+            if (item) {
+                item[field] = value;
+                saveLogs();
+                renderLogs();
+            }
+        }
+
+        function deleteLog(id) {
+            appState.logs = appState.logs.filter(x => x.id !== id);
+            saveLogs();
+            renderLogs();
+        }
+
+        function saveLogs() {
+            localStorage.setItem('docebo_test_logs', JSON.stringify(appState.logs));
+        }
+
+        function renderLogs() {
+            const tbody = document.getElementById('auditTableBody');
+            if (appState.logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400 italic">No tests logged yet. Click "Log Test" on any course card after clicking the link.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = appState.logs.map(log => `
+        <tr class="hover:bg-slate-50/80 transition">
+          <td class="py-2.5 px-3 font-mono text-[11px] text-slate-500">${log.time}</td>
+          <td class="py-2.5 px-3 font-medium text-slate-800">${log.linkType}</td>
+          <td class="py-2.5 px-3">
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${log.frontUser.includes('Account A') ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}">
+              ${log.frontUser.split(' ')[0]}
+            </span>
+          </td>
+          <td class="py-2.5 px-3">
+            <select onchange="updateLogField(${log.id}, 'observedUser', this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded px-2 py-1">
+              <option value="Account A" ${log.observedUser === 'Account A' ? 'selected' : ''}>Account A (Old Session)</option>
+              <option value="Account B" ${log.observedUser === 'Account B' ? 'selected' : ''}>Account B (New User)</option>
+              <option value="Logged Out / Error" ${log.observedUser === 'Logged Out / Error' ? 'selected' : ''}>Logged Out / Error</option>
+              <option value="Unchecked" ${log.observedUser === 'Unchecked' ? 'selected' : ''}>Unchecked</option>
+            </select>
+          </td>
+          <td class="py-2.5 px-3">
+            <select onchange="updateLogField(${log.id}, 'reauthForced', this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded px-2 py-1 font-semibold ${log.reauthForced === 'Yes' ? 'text-emerald-700' : log.reauthForced === 'No' ? 'text-rose-600' : 'text-slate-600'}">
+              <option value="Pending" ${log.reauthForced === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option value="No (Stale Cookie Kept)" ${log.reauthForced === 'No (Stale Cookie Kept)' ? 'selected' : ''}>No (Stale Cookie Kept)</option>
+              <option value="Yes (Entra Prompted)" ${log.reauthForced === 'Yes (Entra Prompted)' ? 'selected' : ''}>Yes (Entra Prompted)</option>
+            </select>
+          </td>
+          <td class="py-2.5 px-3">
+            <button onclick="deleteLog(${log.id})" class="text-slate-400 hover:text-rose-600 p-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+        }
+
+        function clearAuditData() {
+            appState.logs = [];
+            saveLogs();
+            renderLogs();
+            showToast("Cleared observation logs");
+        }
+
+        function exportAuditData() {
+            if (appState.logs.length === 0) {
+                showToast("No data to export", true);
+                return;
+            }
+            const headers = ["Timestamp", "Link Type", "Front-End User", "Observed In Docebo", "Forced Reauth"];
+            const rows = appState.logs.map(l => [
+                `"${l.time}"`,
+                `"${l.linkType}"`,
+                `"${l.frontUser}"`,
+                `"${l.observedUser}"`,
+                `"${l.reauthForced}"`
+            ]);
+
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `docebo_auth_test_results_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast("Exported CSV successfully");
+        }
+
+        async function testWorkerProxy() {
+            const endpoint = document.getElementById('workerEndpointInput').value.trim();
+            const responseBox = document.getElementById('workerResponseBox');
+            const responseBody = document.getElementById('workerResponseBody');
+            const statusBadge = document.getElementById('workerStatusBadge');
+
+            if (!endpoint) {
+                showToast("Enter your Cloudflare Worker URL first", true);
+                return;
+            }
+
+            responseBox.classList.remove('hidden');
+            statusBadge.innerText = 'Calling Worker...';
+            statusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300';
+            responseBody.innerText = `Dispatching request to ${endpoint}...\nActive User: ${appState.accounts[appState.activeAccount].email}\nCourse: ${appState.config.courseId}`;
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: appState.accounts[appState.activeAccount].email,
+                        course_id: appState.config.courseId,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                const data = await res.json().catch(() => res.text());
+                statusBadge.innerText = `Status ${res.status}`;
+                statusBadge.className = res.ok ? 'text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300' : 'text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300';
+                responseBody.innerText = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+            } catch (err) {
+                statusBadge.innerText = 'Network / CORS Error';
+                statusBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-rose-500/20 text-rose-300';
+                responseBody.innerText = `Fetch Error: ${err.message}\nNote: Ensure your Cloudflare Worker enables Access-Control-Allow-Origin: * headers.`;
+            }
+        }
+
+        function toggleConfigModal(open) {
+            const modal = document.getElementById('configModal');
+            if (open) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function saveConfiguration() {
+            appState.config.domain = document.getElementById('cfgDomain').value.trim();
+            appState.config.courseId = document.getElementById('cfgCourseId').value.trim();
+            appState.config.courseSlug = document.getElementById('cfgCourseSlug').value.trim();
+            appState.config.eeFolder = document.getElementById('cfgEeFolder').value.trim();
+            appState.config.generatedBy = document.getElementById('cfgGeneratedBy').value.trim();
+            appState.config.hash = document.getElementById('cfgHash').value.trim();
+            appState.config.userAId = document.getElementById('cfgUserAId').value.trim();
+            appState.config.targetUserId = document.getElementById('cfgUserBId').value.trim();
+            appState.accounts.A.userId = appState.config.userAId;
+            appState.accounts.B.userId = appState.config.targetUserId;
+            document.getElementById('cfgTargetUserId').value = appState.config.targetUserId;
+
+            localStorage.setItem('docebo_test_config', JSON.stringify(appState.config));
+            renderAllUrls();
+            toggleConfigModal(false);
+            showToast("Updated test parameters");
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toastNotification');
+            const msg = document.getElementById('toastMsg');
+            const icon = document.getElementById('toastIcon');
+
+            msg.innerText = message;
+            icon.innerText = isError ? '✕' : '✓';
+            icon.className = isError ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold';
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 2500);
+        }
+    </script>
+</body>
+
+</html>
